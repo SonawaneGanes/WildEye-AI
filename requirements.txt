@@ -1,0 +1,15 @@
+# Core
+dash
+dash-auth
+dash-html-components
+dash-core-components
+dash-renderer
+gunicorn
+plotly
+pillow
+Flask
+scipy
+numpy
+pandas
+dash-player
+
