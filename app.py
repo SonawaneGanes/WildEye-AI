@@ -1,4 +1,6 @@
-
+python -m venv .venv
+source .venv/bin/activate  # On Windows use: .venv\Scripts\activatepython -m venv .venv
+source .venv/bin/activate  # On Windows use: .venv\Scripts\activatefrom textwrap import dedent
 
 import dash
 import dash_core_components as dcc
