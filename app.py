@@ -3,6 +3,14 @@ source .venv/bin/activate  # On Windows use: .venv\Scripts\activatepython -m ven
 source .venv/bin/activate  # On Windows use: .venv\Scripts\activatefrom textwrap import dedent
 
 
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+import dash_player as player
+import numpy as np
+import pandas as pd
+import plotly.graph_objs as go
+from dash.dependencies import Input, Output, State
 
 DEBUG = True
 FRAMERATE = 24.0
