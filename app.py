@@ -1,6 +1,5 @@
-python -m venv .venv
-source .venv/bin/activate  # On Windows use: .venv\Scripts\activatepython -m venv .venv
-source .venv/bin/activate  # On Windows use: .venv\Scripts\activatefrom textwrap import dedent
+import os
+from textwrap import dedent
 
 
 import dash
@@ -11,8 +10,10 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
+from utils.detections import count_classes, filter_frame, top_n_detections
+from utils.timing import time_to_frame
 
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "0") == "1"
 FRAMERATE = 24.0
 
 app = dash.Dash(__name__)
@@ -22,14 +23,37 @@ app.scripts.config.serve_locally = True
 app.config['suppress_callback_exceptions'] = True
 
 
-def load_data(path):
+def validate_detection_csv(path) -> pd.DataFrame:
+    try:
+        video_info_df = pd.read_csv(path)
+    except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError) as error:
+        raise ValueError(f"{path}: could not read detection CSV: {error}") from error
+
+    required_columns = {"class_str", "frame", "score"}
+    missing_columns = required_columns.difference(video_info_df.columns)
+    if missing_columns:
+        raise ValueError(f"{path}: missing required columns: {', '.join(sorted(missing_columns))}")
+
+    frames = pd.to_numeric(video_info_df["frame"], errors="coerce")
+    if frames.isna().any() or not (frames % 1 == 0).all():
+        raise ValueError(f"{path}: column 'frame' must contain integer values")
+
+    scores = pd.to_numeric(video_info_df["score"], errors="coerce")
+    if scores.isna().any() or not scores.between(0, 1).all():
+        raise ValueError(f"{path}: column 'score' must contain values between 0 and 1")
+
+    return video_info_df
+
+
+def load_data(path, video_info_df=None):
     """Load data about a specific footage (given by the path). It returns a dictionary of useful variables such as
     the dataframe containing all the detection and bounds localization, the number of classes inside that footage,
     the matrix of all the classes in string, the given class with padding, and the root of the number of classes,
     rounded."""
 
     # Load the dataframe containing all the processed object detections inside the video
-    video_info_df = pd.read_csv(path)
+    if video_info_df is None:
+        video_info_df = pd.read_csv(path)
 
     # The list of classes, and the number of classes
     classes_list = video_info_df["class_str"].value_counts().index.tolist()
@@ -267,17 +291,24 @@ app.layout = html.Div(
 def load_all_footage():
     global data_dict, url_dict
 
-    # Load the dictionary containing all the variables needed for analysis
+    footage_paths = {
+        'james_bond': "data/james_bond_object_data.csv",
+        'zebra': "data/Zebra_object_data.csv",
+        # 'car_show_drone': "data/CarShowDrone_object_data.csv",
+        'car_footage': "data/CarFootage_object_data.csv",
+        'DroneCanalFestival': "data/DroneCanalFestivalDetectionData.csv",
+        'DroneCarFestival2': "data/DroneCarFestival2DetectionData.csv",
+        'FarmDrone': "data/FarmDroneDetectionData.csv",
+        'ManCCTV': "data/ManCCTVDetectionData.csv",
+        'RestaurantHoldup': "data/RestaurantHoldupDetectionData.csv"
+    }
+    validated_data = {
+        footage: validate_detection_csv(path)
+        for footage, path in footage_paths.items()
+    }
     data_dict = {
-        'james_bond': load_data("data/james_bond_object_data.csv"),
-        'zebra': load_data("data/Zebra_object_data.csv"),
-        # 'car_show_drone': load_data("data/CarShowDrone_object_data.csv"),
-        'car_footage': load_data("data/CarFootage_object_data.csv"),
-        'DroneCanalFestival': load_data("data/DroneCanalFestivalDetectionData.csv"),
-        'DroneCarFestival2': load_data("data/DroneCarFestival2DetectionData.csv"),
-        'FarmDrone': load_data("data/FarmDroneDetectionData.csv"),
-        'ManCCTV': load_data("data/ManCCTVDetectionData.csv"),
-        'RestaurantHoldup': load_data("data/RestaurantHoldupDetectionData.csv")
+        footage: load_data(path, validated_data[footage])
+        for footage, path in footage_paths.items()
     }
 
     url_dict = {
@@ -406,20 +437,28 @@ def update_score_bar(n, current_time, footage, threshold):
     )
 
     if current_time is not None:
-        current_frame = round(current_time * FRAMERATE)
+        current_frame = time_to_frame(current_time, FRAMERATE)
 
         if n > 0 and current_frame > 0:
             video_info_df = data_dict[footage]["video_info_df"]
 
             # Select the subset of the dataset that correspond to the current frame
-            frame_df = video_info_df[video_info_df["frame"] == current_frame]
+            frame_df = filter_frame(video_info_df, current_frame, threshold / 100)
 
-            # Select only the frames above the threshold
-            threshold_dec = threshold / 100  # Threshold in decimal
-            frame_df = frame_df[frame_df["score"] > threshold_dec]
+            if frame_df.empty:
+                figure = go.Figure(data=[go.Bar()], layout=layout)
+                figure.add_annotation(
+                    text="No detections in this frame",
+                    xref="paper",
+                    yref="paper",
+                    x=0.5,
+                    y=0.5,
+                    showarrow=False
+                )
+                return figure
 
             # Select up to 8 frames with the highest scores
-            frame_df = frame_df[:min(8, frame_df.shape[0])]
+            frame_df = top_n_detections(frame_df)
 
             # Add count to object names (e.g. person --> person 1, person --> person 2)
             objects = frame_df["class_str"].tolist()
@@ -475,20 +514,28 @@ def update_object_count_pie(n, current_time, footage, threshold):
     )
 
     if current_time is not None:
-        current_frame = round(current_time * FRAMERATE)
+        current_frame = time_to_frame(current_time, FRAMERATE)
 
         if n > 0 and current_frame > 0:
             video_info_df = data_dict[footage]["video_info_df"]
 
             # Select the subset of the dataset that correspond to the current frame
-            frame_df = video_info_df[video_info_df["frame"] == current_frame]
+            frame_df = filter_frame(video_info_df, current_frame, threshold / 100)
 
-            # Select only the frames above the threshold
-            threshold_dec = threshold / 100  # Threshold in decimal
-            frame_df = frame_df[frame_df["score"] > threshold_dec]
+            if frame_df.empty:
+                figure = go.Figure(data=[go.Pie()], layout=layout)
+                figure.add_annotation(
+                    text="No detections in this frame",
+                    xref="paper",
+                    yref="paper",
+                    x=0.5,
+                    y=0.5,
+                    showarrow=False
+                )
+                return figure
 
             # Get the count of each object class
-            class_counts = frame_df["class_str"].value_counts()
+            class_counts = count_classes(frame_df)
 
             classes = class_counts.index.tolist()  # List of each class
             counts = class_counts.tolist()  # List of each count
@@ -533,7 +580,7 @@ def update_heatmap_confidence(n, current_time, footage, threshold):
     )
 
     if current_time is not None:
-        current_frame = round(current_time * FRAMERATE)
+        current_frame = time_to_frame(current_time, FRAMERATE)
 
         if n > 0 and current_frame > 0:
             # Load variables from the data dictionary
@@ -543,11 +590,7 @@ def update_heatmap_confidence(n, current_time, footage, threshold):
             classes_matrix = data_dict[footage]["classes_matrix"]
 
             # Select the subset of the dataset that correspond to the current frame
-            frame_df = video_info_df[video_info_df["frame"] == current_frame]
-
-            # Select only the frames above the threshold
-            threshold_dec = threshold / 100
-            frame_df = frame_df[frame_df["score"] > threshold_dec]
+            frame_df = filter_frame(video_info_df, current_frame, threshold / 100)
 
             # Remove duplicate, keep the top result
             frame_no_dup = frame_df[["class_str", "score"]].drop_duplicates("class_str")
@@ -595,9 +638,9 @@ def update_heatmap_confidence(n, current_time, footage, threshold):
                         y=y_cord
                     )
                     if score_matrix[y_cord][x_cord] > 0:
-                        annotation_dict['font'] = {'color': '#F9F9F9', 'size': '11'}
+                        annotation_dict['font'] = {'color': '#F9F9F9', 'size': '11'} # type: ignore
                     else:
-                        annotation_dict['font'] = {'color': '#606060', 'size': '11'}
+                        annotation_dict['font'] = {'color': '#606060', 'size': '11'} # type: ignore
                     annotation.append(annotation_dict)
 
             # Generate heatmap figure
@@ -628,10 +671,10 @@ def update_heatmap_confidence(n, current_time, footage, threshold):
 
             return figure
 
-    # Returns empty figure
-    return go.Figure(data=[go.Pie()], layout=layout)
+    # Returns empty heatmap
+    return go.Figure(data=[go.Heatmap(z=[])], layout=layout)
 
 
 # Running the server
 if __name__ == '__main__':
-    app.run_server(dev_tools_hot_reload=False, debug=DEBUG, host='0.0.0.0')
+    app.run_server(dev_tools_hot_reload=False, debug=DEBUG, host='127.0.0.1')

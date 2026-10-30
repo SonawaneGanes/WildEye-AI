@@ -1,33 +1,35 @@
-# 🦌 Wild Eye AI – Wildlife Detection Result Viewer
+# 🦌 Wild Eye AI – Object Detection Result Viewer
 
 ## 📌 Project Overview
 
-**Wild Eye AI** is a Python-based **Dash web application for reviewing and visualizing wildlife object-detection results alongside video footage**.
+**Wild Eye AI** is a Python-based **Dash web application for reviewing and visualizing object-detection results alongside video footage**.
 
-The application allows users to select wildlife footage and a display mode, play the video, and view object-detection information corresponding to the current video frame.
+The application allows users to select footage and a display mode, play the video, and view object-detection information corresponding to the current video frame.
 
 The application uses **pre-recorded object-detection results stored in CSV files**. It does **not run an object-detection model itself**; instead, it loads previously generated detection data and provides an interactive interface for analysis and visualization.
+
+**Dataset and classes:** TODO — confirm the dataset and class list before describing them.
 
 ---
 
 ## 🎯 Objective
 
-The main objective of this project is to make wildlife detection results easier to review and understand by combining:
+The main objective of this project is to make object-detection results easier to review and understand by combining:
 
-* Wildlife video footage
+* Video footage
 * Pre-recorded object-detection results
 * Confidence scores
 * Object-count visualization
 * Confidence heatmaps
 * Interactive Dash components
 
-This type of system can help researchers and developers inspect the output of wildlife detection systems more conveniently.
+This type of system can help researchers and developers inspect detection-system output more conveniently.
 
 ---
 
 ## 🚀 Features
 
-* 🎥 Video playback for selected wildlife footage
+* 🎥 Video playback for selected footage
 * 🐾 Review of object-detection results
 * 📊 Detection-score visualization
 * 🍩 Object-count pie charts
@@ -43,7 +45,7 @@ This type of system can help researchers and developers inspect the output of wi
 ## 🧠 How the Application Works
 
 ```text
-                    Wildlife Video
+                    Video
                          |
                          v
                   Video Playback
@@ -83,10 +85,7 @@ Wildeye AI/
 ├── app.py
 │
 ├── data/
-│   ├── FarmDroneDetectionData.csv
-│   ├── Zebra_object_data.csv
-│   ├── james_bond_object_data.csv
-│   └── ...other detection CSV files
+│   └── ...detection CSV files
 │
 ├── assets/
 │   └── ...optional Dash CSS, images, and static files
@@ -116,25 +115,9 @@ The CSV paths used by the application are resolved relative to the **current wor
 
 ## 📦 Dependencies
 
-The original project environment specifies the following package versions:
-
-```text
-dash==0.35.2
-dash-auth==1.1.2
-dash-html-components==0.13.5
-dash-core-components==0.43.0
-dash-renderer==0.17.0
-gunicorn==19.9.0
-plotly==3.6.0
-pillow==5.4.1
-Flask==1.0.1
-scipy==1.2.1
-numpy==1.16.1
-pandas==0.24.1
-dash-player==0.0.1
-```
-
-These are historical dependency versions from the original project environment. Newer Python versions may require updated, compatible package versions.
+The dependencies are listed in `requirements.txt`. The additional computer-vision
+and model-processing packages are pinned to versions compatible with Python 3.10
+and 3.11.
 
 ---
 
@@ -143,7 +126,7 @@ These are historical dependency versions from the original project environment. 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git
+TODO: add the repository clone URL after confirmation.
 cd "Wildeye AI"
 ```
 
@@ -186,7 +169,11 @@ cd "D:\Wildeye AI"
 python app.py
 ```
 
-The Dash application should then start and provide a local web address.
+The Dash application is configured to run at:
+
+```text
+http://127.0.0.1:8050
+```
 
 ---
 
@@ -202,11 +189,15 @@ frame
 score
 ```
 
+On the first request, the application validates each configured CSV. The `frame`
+column must contain integer values, and `score` values must be between 0 and 1
+inclusive. Validation errors identify the file and the problem.
+
 ### Column Description
 
 | Column      | Description                                          |
 | ----------- | ---------------------------------------------------- |
-| `class_str` | Name of the detected object/species                  |
+| `class_str` | Detected class label (class list confirmation pending) |
 | `frame`     | Video frame number associated with the detection     |
 | `score`     | Detection confidence score, normally between 0 and 1 |
 
@@ -214,10 +205,10 @@ Example:
 
 ```csv
 class_str,frame,score
-zebra,120,0.94
-lion,120,0.87
-zebra,121,0.91
-lion,122,0.89
+class_a,120,0.94
+class_b,120,0.87
+class_a,121,0.91
+class_b,122,0.89
 ```
 
 ---
@@ -402,8 +393,8 @@ Displays how many detections belong to each object class in the selected frame.
 Example:
 
 ```text
-Lion   → 2
-Zebra  → 5
+Class A → 2
+Class B → 5
 ```
 
 ---
@@ -418,12 +409,9 @@ This helps the user compare detection confidence among different classes.
 
 ## 🎬 Available Footage
 
-The application currently exposes selected footage in its footage dropdown, including:
-
-* Farm Drone
-* Lion Fighting Zebras
-
-Additional footage can be loaded by adding the corresponding CSV configuration and video mapping.
+**Available footage and dataset description:** TODO — confirm the dataset and
+the footage/classes to describe. Additional footage can be loaded by adding the
+corresponding CSV configuration and video mapping.
 
 ---
 
@@ -501,9 +489,7 @@ Verify whether this import is required by the actual project before deployment.
 
 This type of application can be used for:
 
-* Wildlife research
-* Camera-trap result analysis
-* Wildlife monitoring
+* Video-based object-detection result review
 * Object-detection model evaluation
 * Conservation data review
 * Computer-vision experiment analysis
@@ -517,7 +503,7 @@ Possible improvements include:
 
 * Integrating a live object-detection model
 * Supporting uploaded videos
-* Supporting additional wildlife species
+* Supporting additional classes after the class list is confirmed
 * Adding real-time detection
 * Adding bounding-box overlays
 * Adding detection statistics across complete videos
@@ -531,6 +517,12 @@ Possible improvements include:
 ---
 
 ## 🧪 Testing
+
+Run the automated test suite from the project directory:
+
+```bash
+pytest
+```
 
 Recommended testing areas:
 
@@ -588,7 +580,7 @@ and visualizes the detections found for that frame.
 
 ## 📌 Project Highlights
 
-* Built a Python-based Dash application for reviewing wildlife object-detection results.
+* Built a Python-based Dash application for reviewing object-detection results.
 * Integrated video playback with frame-based detection analysis.
 * Processed prerecorded detection data using Pandas and NumPy.
 * Created interactive Plotly visualizations for detection confidence and object counts.
@@ -617,18 +609,24 @@ Gunicorn
 
 ## 📜 License
 
-Add the license applicable to your repository.
+The project license is MIT; see [scripts/LICENSE.md](scripts/LICENSE.md).
 
-For example:
+TODO: add a root-level `LICENSE` file if the repository should distribute the
+license at its root.
 
-```text
-MIT License
-```
+---
+
+## Known limitations
+
+- Class confusion may occur, including horse/cow and dog/cat.
+- Small animals in drone footage may be missed.
+- Evaluation details and open questions are tracked in
+  [evaluation/README.md](evaluation/README.md).
 
 ---
 
 ## ⭐ Project Summary
 
-**Wild Eye AI** is an interactive wildlife detection result analysis platform built with Python and Dash. It connects wildlife video playback with pre-recorded object-detection data and provides visual tools for examining detection confidence, object counts, and class-level detection behavior.
+**Wild Eye AI** is an interactive object-detection result analysis platform built with Python and Dash. It connects video playback with pre-recorded detection data and provides visual tools for examining detection confidence, object counts, and class-level detection behavior.
 
-The project is designed primarily as a **detection-result review and visualization system**, while the actual object-detection model can be treated as a separate upstream component.
+The confirmed dataset and class list remain TODO; the project is designed primarily as a **detection-result review and visualization system**, while the actual object-detection model can be treated as a separate upstream component.

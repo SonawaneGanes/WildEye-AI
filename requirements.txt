@@ -1,5 +1,5 @@
 # Core
-dash
+dash<3
 dash-auth
 dash-html-components
 dash-core-components
@@ -7,9 +7,12 @@ dash-renderer
 gunicorn
 plotly
 pillow
-Flask
+Flask<2.3
 scipy
 numpy
 pandas
 dash-player
-
+tensorflow==2.16.2
+opencv-python==4.10.0.84
+matplotlib==3.9.2
+six==1.16.0
